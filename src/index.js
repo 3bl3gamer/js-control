@@ -4,7 +4,7 @@
  * @param {{
  *   startElem: Element,
  *   moveElem?: EventTarget|null,
- *   offsetElem?: Element|null,
+ *   offsetElem?: Element|null|'no-offset',
  *   leaveElem?: EventTarget|null,
  *   callbacks: {
  *     singleDown?: (e:MouseEvent|TouchEvent, id:'mouse'|number, x:number, y:number) => boolean|void,
@@ -27,17 +27,7 @@ export function controlSingle(params) {
 
 	let touchId = /** @type {number|null} */ (null)
 
-	/**
-	 * @template {Event} T
-	 * @param {(e:T, x:number, y:number) => boolean|void} func
-	 * @returns {(e:T) => void}
-	 */
-	function wrap(func) {
-		return e => {
-			const rect = offsetElem.getBoundingClientRect()
-			func(e, -rect.left, -rect.top) && e.preventDefault()
-		}
-	}
+	const wrap = makeOffsetWrapper(offsetElem)
 
 	const mousedown = wrap(function mousedown(/** @type {MouseEvent} */ e, dx, dy) {
 		if (e.button != 0) return false
@@ -119,12 +109,30 @@ export function controlSingle(params) {
 	const touchCancelEvt = /** @type {Evt} */ ([moveElem, 'touchcancel', touchcancel])
 	// prettier-ignore
 	const events = [
-		mouseDownEvt, mouseMoveEvt, mouseUpEvt, mouseHoverEvt, mouseLeaveEvt,
+		mouseDownEvt, mouseMoveEvt, mouseUpEvt, mouseHoverEvt, mouseLeaveEvt, wheelEvt,
 		touchStartEvt, touchMoveEvt, touchEndEvt, touchCancelEvt,
 	]
 	const autoOnEvents = [mouseDownEvt, touchStartEvt, mouseHoverEvt, mouseLeaveEvt, wheelEvt]
 
 	return makeEventsToggler(events, autoOnEvents)
+}
+
+/**
+ * @param {{
+ *   startElem: Element,
+ *   offsetElem?: Element|null|'no-offset',
+ *   wheelRot: (e:WheelEvent, deltaX:number, deltaY:number, deltaZ:number, x:number, y:number) => void|boolean,
+ * }} params
+ */
+export function controlWheel(params) {
+	const { startElem, wheelRot } = params
+	const offsetElem = params.offsetElem ?? startElem
+
+	const wrap = makeOffsetWrapper(offsetElem)
+	const mousewheel = makeWheelListener(wrap, wheelRot)
+	const wheelEvt = /** @type {Evt} */ ([startElem, 'wheel', mousewheel])
+
+	return makeEventsToggler([], [wheelEvt])
 }
 
 /**
@@ -158,17 +166,7 @@ export function controlDouble(params) {
 
 	const touchIds = /** @type {number[]} */ ([])
 
-	/**
-	 * @template {Event} T
-	 * @param {(e:T, x:number, y:number) => boolean|void} func
-	 * @returns {(e:T) => void}
-	 */
-	function wrap(func) {
-		return e => {
-			const rect = offsetElem.getBoundingClientRect()
-			func(e, -rect.left, -rect.top) && e.preventDefault()
-		}
-	}
+	const wrap = makeOffsetWrapper(offsetElem)
 
 	const mousedown = wrap(function mousedown(/** @type {MouseEvent} */ e, dx, dy) {
 		if (e.button != 0) return false
@@ -311,7 +309,7 @@ export function controlDouble(params) {
 	const touchCancelEvt = /** @type {Evt} */ ([moveElem, 'touchcancel', touchcancel])
 	// prettier-ignore
 	const events = [
-		mouseDownEvt, mouseMoveEvt, mouseUpEvt, mouseHoverEvt, mouseLeaveEvt,
+		mouseDownEvt, mouseMoveEvt, mouseUpEvt, mouseHoverEvt, mouseLeaveEvt, wheelEvt,
 		touchStartEvt, touchMoveEvt, touchEndEvt, touchCancelEvt,
 	]
 	const autoOnEvents = [mouseDownEvt, touchStartEvt, mouseHoverEvt, mouseLeaveEvt, wheelEvt]
@@ -320,6 +318,28 @@ export function controlDouble(params) {
 }
 
 function noop() {}
+
+/**
+ * @param {Element|'no-offset'} offsetElem
+ */
+function makeOffsetWrapper(offsetElem) {
+	/**
+	 * @template {Event} T
+	 * @param {(e:T, x:number, y:number) => boolean|void} func
+	 * @returns {(e:T) => void}
+	 */
+	function wrap(func) {
+		return e => {
+			let dx = 0
+			let dy = 0
+			if (offsetElem !== 'no-offset') {
+				;({ left: dx, top: dy } = offsetElem.getBoundingClientRect())
+			}
+			func(e, -dx, -dy) && e.preventDefault()
+		}
+	}
+	return wrap
+}
 
 /**
  * @param {(func: (e:WheelEvent, x:number, y:number) => boolean|void) => ((e:WheelEvent) => void)} wrap

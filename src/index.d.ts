@@ -3,7 +3,7 @@
  * @param {{
  *   startElem: Element,
  *   moveElem?: EventTarget|null,
- *   offsetElem?: Element|null,
+ *   offsetElem?: Element|null|'no-offset',
  *   leaveElem?: EventTarget|null,
  *   callbacks: {
  *     singleDown?: (e:MouseEvent|TouchEvent, id:'mouse'|number, x:number, y:number) => boolean|void,
@@ -18,7 +18,7 @@
 export function controlSingle(params: {
     startElem: Element;
     moveElem?: EventTarget | null;
-    offsetElem?: Element | null;
+    offsetElem?: Element | null | 'no-offset';
     leaveElem?: EventTarget | null;
     callbacks: {
         singleDown?: (e: MouseEvent | TouchEvent, id: 'mouse' | number, x: number, y: number) => boolean | void;
@@ -28,6 +28,23 @@ export function controlSingle(params: {
         singleLeave?: (e: MouseEvent, x: number, y: number) => void | boolean;
         wheelRot?: (e: WheelEvent, deltaX: number, deltaY: number, deltaZ: number, x: number, y: number) => void | boolean;
     };
+}): {
+    toggle: (on: boolean | null | undefined) => void;
+    readonly isOn: boolean;
+    on(): void;
+    off(): void;
+};
+/**
+ * @param {{
+ *   startElem: Element,
+ *   offsetElem?: Element|null|'no-offset',
+ *   wheelRot: (e:WheelEvent, deltaX:number, deltaY:number, deltaZ:number, x:number, y:number) => void|boolean,
+ * }} params
+ */
+export function controlWheel(params: {
+    startElem: Element;
+    offsetElem?: Element | null | 'no-offset';
+    wheelRot: (e: WheelEvent, deltaX: number, deltaY: number, deltaZ: number, x: number, y: number) => void | boolean;
 }): {
     toggle: (on: boolean | null | undefined) => void;
     readonly isOn: boolean;
