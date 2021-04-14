@@ -70,10 +70,10 @@ export function controlSingle(params) {
 	})
 
 	const touchmove = wrap(function touchmove(/** @type {TouchEvent} */ e, dx, dy) {
-		if (touchId !== null) {
-			const t0 = mustFindTouch(e.changedTouches, touchId)
-			return singleMove(e, touchId, t0.clientX + dx, t0.clientY + dy)
-		}
+		if (touchId === null) return false
+		const touch = findTouch(e.changedTouches, touchId)
+		if (touch === null) return false
+		return singleMove(e, touchId, touch.clientX + dx, touch.clientY + dy)
 	})
 
 	const touchend = wrap(function touchend(/** @type {TouchEvent} */ e, dx, dy) {

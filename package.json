@@ -6,7 +6,9 @@
 	"main": "src/index.js",
 	"sideEffects": false,
 	"scripts": {
-		"generate-types": "tsc src/index.js --allowJs --declaration --emitDeclarationOnly"
+		"generate-types": "tsc src/index.js --allowJs --declaration --emitDeclarationOnly",
+		"test": "mocha src/test.js",
+		"test-watch": "mocha --watch --parallel src/test.js"
 	},
 	"repository": {
 		"type": "git",
@@ -24,6 +26,14 @@
 	"author": "3bl3gamer",
 	"license": "MIT",
 	"devDependencies": {
+		"@types/chai": "^4.2.16",
+		"@types/jsdom": "^16.2.10",
+		"@types/mocha": "^8.2.2",
+		"@types/sinon": "^9.0.11",
+		"chai": "^4.3.4",
+		"jsdom": "^16.5.3",
+		"mocha": "^8.3.2",
+		"sinon": "^10.0.0",
 		"tslib": "^2.1.0",
 		"typescript": "^4.2.3"
 	}

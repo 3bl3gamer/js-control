@@ -7,9 +7,10 @@
 		"strictFunctionTypes": true,
 		"strictBindCallApply": true,
 		"strictPropertyInitialization": true,
+		"allowSyntheticDefaultImports": true,
 		"target": "esnext",
 		"module": "esnext",
-		"moduleResolution": "node",
+		"moduleResolution": "node"
 	},
 	"exclude": ["node_modules"]
 }
