@@ -147,9 +147,9 @@ export function controlWheel(params) {
  *     singleUp?: (e:MouseEvent|TouchEvent, id:'mouse'|number, isSwitching:boolean) => void|boolean,
  *     singleHover?: (e:MouseEvent, x:number, y:number) => void|boolean,
  *     singleLeave?: (e:MouseEvent, x:number, y:number) => void|boolean,
- *     doubleDown?: (e:TouchEvent, id0:number, x0:number, y0:number, id1:number, x1:number, y1:number, isSwitching:boolean) => void|boolean,
+ *     doubleDown?: (e:TouchEvent, id0:number, x0:number, y0:number, id1:number, x1:number, y1:number) => void|boolean,
  *     doubleMove?: (e:TouchEvent, id0:number, x0:number, y0:number, id1:number, x1:number, y1:number) => void|boolean,
- *     doubleUp?: (e:TouchEvent, id0:number, id1:number, isSwitching:boolean) => void|boolean,
+ *     doubleUp?: (e:TouchEvent, id0:number, id1:number) => void|boolean,
  *     wheelRot?: (e:WheelEvent, deltaX:number, deltaY:number, deltaZ:number, x:number, y:number) => void|boolean,
  *   },
  * }} params
@@ -197,51 +197,55 @@ export function controlDouble(params) {
 	})
 
 	const touchstart = wrap(function touchstart(/** @type {TouchEvent} */ e, dx, dy) {
-		const count = touchIds.length
-		if (count == 2) return false
+		const curCount = touchIds.length
+		if (curCount === 2) return false
+		const changedTouches = e.changedTouches
 
-		if (count == 0) {
+		if (curCount === 0) {
 			addListener(touchMoveEvt)
 			addListener(touchEndEvt)
 			addListener(touchCancelEvt)
 		}
 
-		if (count == 0 && e.changedTouches.length == 1) {
+		if (curCount === 0 && changedTouches.length === 1) {
 			const t = e.changedTouches[0]
 			touchIds.push(t.identifier)
 			return singleDown(e, touchIds[0], t.clientX + dx, t.clientY + dy, false)
 		}
-		if (count == 0 && e.changedTouches.length >= 2) {
-			const ts = e.changedTouches
-			touchIds.push(ts[0].identifier)
-			touchIds.push(ts[1].identifier)
-			const x0 = ts[0].clientX + dx
-			const y0 = ts[0].clientY + dy
-			const x1 = ts[1].clientX + dx
-			const y1 = ts[1].clientY + dy
-			return doubleDown(e, touchIds[0], x0, y0, touchIds[1], x1, y1, false)
+
+		let t0, t1
+		let prevent = /**@type {void|boolean}*/ (false)
+		if (curCount === 0) {
+			// and changedTouches.length >= 2
+			t0 = changedTouches[0]
+			t1 = changedTouches[1]
+			touchIds.push(t0.identifier)
+			prevent = singleDown(e, t0.identifier, t0.clientX + dx, t0.clientY + dy, false)
+		} else {
+			// curCount === 1 and changedTouches.length >= 1
+			t0 = mustFindTouch(e.touches, touchIds[0])
+			t1 = e.changedTouches[0]
 		}
-		if (count == 1) {
-			const t0 = mustFindTouch(e.touches, touchIds[0])
-			const t1 = e.changedTouches[0]
-			touchIds.push(t1.identifier)
-			const x0 = t0.clientX + dx
-			const y0 = t0.clientY + dy
-			const x1 = t1.clientX + dx
-			const y1 = t1.clientY + dy
-			const prevent0 = singleUp(e, touchIds[0], true)
-			const prevent1 = doubleDown(e, touchIds[0], x0, y0, touchIds[1], x1, y1, true)
-			return prevent0 || prevent1
-		}
+		touchIds.push(t1.identifier)
+		const prevetUp = singleUp(e, t0.identifier, true)
+		prevent = prevent || prevetUp
+
+		const x0 = t0.clientX + dx
+		const y0 = t0.clientY + dy
+		const x1 = t1.clientX + dx
+		const y1 = t1.clientY + dy
+		const preventDouble = doubleDown(e, touchIds[0], x0, y0, touchIds[1], x1, y1)
+		return prevent || preventDouble
 	})
 
 	const touchmove = wrap(function touchmove(/** @type {TouchEvent} */ e, dx, dy) {
-		const count = touchIds.length
-		if (count == 1) {
-			const t0 = mustFindTouch(e.changedTouches, touchIds[0])
+		const curCount = touchIds.length
+		if (curCount == 1) {
+			const t0 = findTouch(e.changedTouches, touchIds[0])
+			if (t0 === null) return false
 			return singleMove(e, touchIds[0], t0.clientX + dx, t0.clientY + dy)
 		}
-		if (count == 2) {
+		if (curCount == 2) {
 			// can not use e.changedTouches: one of touches may have not changed
 			const t0 = mustFindTouch(e.touches, touchIds[0])
 			const t1 = mustFindTouch(e.touches, touchIds[1])
@@ -255,8 +259,11 @@ export function controlDouble(params) {
 
 	const releasedTouches = /** @type {Touch[]} */ ([])
 	const touchend = wrap(function touchend(/** @type {TouchEvent} */ e, dx, dy) {
-		const count = touchIds.length
-		if (count === 0) return false
+		const curCount = touchIds.length
+		if (curCount === 0) return false
+
+		const tid0 = touchIds[0]
+		const tid1 = touchIds[1]
 
 		releasedTouches.length = 0
 		for (let j = touchIds.length - 1; j >= 0; j--) {
@@ -268,27 +275,27 @@ export function controlDouble(params) {
 				}
 			}
 		}
+		if (releasedTouches.length === 0) return false
 
-		if (count === releasedTouches.length) {
+		if (curCount === releasedTouches.length) {
 			removeListener(touchMoveEvt)
 			removeListener(touchEndEvt)
 			removeListener(touchCancelEvt)
 		}
 
-		if (count === 1 && releasedTouches.length === 1) {
+		if (curCount === 1 && releasedTouches.length === 1) {
 			return singleUp(e, releasedTouches[0].identifier, false)
 		}
-		if (count == 2 && releasedTouches.length === 2) {
-			return doubleUp(e, releasedTouches[0].identifier, releasedTouches[1].identifier, false)
+
+		const tLast = mustFindTouch(e.touches, releasedTouches[0].identifier === tid0 ? tid1 : tid0)
+
+		const preventUp2 = doubleUp(e, tid0, tid1)
+		const preventDown1 = singleDown(e, tLast.identifier, tLast.clientX + dx, tLast.clientY + dy, true)
+		let preventUp1 = /**@type {void|boolean}*/ (false)
+		if (curCount == 2 && releasedTouches.length === 2) {
+			preventUp1 = singleUp(e, tLast.identifier, false)
 		}
-		if (count == 2 && releasedTouches.length === 1) {
-			const id0 = touchIds[0]
-			const t0 = mustFindTouch(e.touches, id0)
-			const t1 = releasedTouches[0]
-			const prevent0 = doubleUp(e, id0, t1.identifier, true)
-			const prevent1 = singleDown(e, t0.identifier, t0.clientX + dx, t0.clientY + dy, true)
-			return prevent0 || prevent1
-		}
+		return preventUp2 || preventDown1 || preventUp1
 	})
 
 	const touchcancel = wrap(function touchcancel(/** @type {TouchEvent} */ e, dx, dy) {

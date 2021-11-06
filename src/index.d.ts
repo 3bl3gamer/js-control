@@ -63,9 +63,9 @@ export function controlWheel(params: {
  *     singleUp?: (e:MouseEvent|TouchEvent, id:'mouse'|number, isSwitching:boolean) => void|boolean,
  *     singleHover?: (e:MouseEvent, x:number, y:number) => void|boolean,
  *     singleLeave?: (e:MouseEvent, x:number, y:number) => void|boolean,
- *     doubleDown?: (e:TouchEvent, id0:number, x0:number, y0:number, id1:number, x1:number, y1:number, isSwitching:boolean) => void|boolean,
+ *     doubleDown?: (e:TouchEvent, id0:number, x0:number, y0:number, id1:number, x1:number, y1:number) => void|boolean,
  *     doubleMove?: (e:TouchEvent, id0:number, x0:number, y0:number, id1:number, x1:number, y1:number) => void|boolean,
- *     doubleUp?: (e:TouchEvent, id0:number, id1:number, isSwitching:boolean) => void|boolean,
+ *     doubleUp?: (e:TouchEvent, id0:number, id1:number) => void|boolean,
  *     wheelRot?: (e:WheelEvent, deltaX:number, deltaY:number, deltaZ:number, x:number, y:number) => void|boolean,
  *   },
  * }} params
@@ -81,9 +81,9 @@ export function controlDouble(params: {
         singleUp?: (e: MouseEvent | TouchEvent, id: 'mouse' | number, isSwitching: boolean) => void | boolean;
         singleHover?: (e: MouseEvent, x: number, y: number) => void | boolean;
         singleLeave?: (e: MouseEvent, x: number, y: number) => void | boolean;
-        doubleDown?: (e: TouchEvent, id0: number, x0: number, y0: number, id1: number, x1: number, y1: number, isSwitching: boolean) => void | boolean;
+        doubleDown?: (e: TouchEvent, id0: number, x0: number, y0: number, id1: number, x1: number, y1: number) => void | boolean;
         doubleMove?: (e: TouchEvent, id0: number, x0: number, y0: number, id1: number, x1: number, y1: number) => void | boolean;
-        doubleUp?: (e: TouchEvent, id0: number, id1: number, isSwitching: boolean) => void | boolean;
+        doubleUp?: (e: TouchEvent, id0: number, id1: number) => void | boolean;
         wheelRot?: (e: WheelEvent, deltaX: number, deltaY: number, deltaZ: number, x: number, y: number) => void | boolean;
     };
 }): {
