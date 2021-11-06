@@ -30,7 +30,7 @@ export function controlSingle(params) {
 	const wrap = makeOffsetWrapper(offsetElem)
 
 	const mousedown = wrap(function mousedown(/** @type {MouseEvent} */ e, dx, dy) {
-		if (e.button != 0) return false
+		if (e.button !== 0) return false
 		addListener(mouseMoveEvt)
 		addListener(mouseUpEvt)
 		removeListener(mouseHoverEvt)
@@ -42,7 +42,7 @@ export function controlSingle(params) {
 	})
 
 	const mouseup = wrap(function mouseup(/** @type {MouseEvent} */ e, dx, dy) {
-		if (e.button != 0) return false
+		if (e.button !== 0) return false
 		removeListener(mouseMoveEvt)
 		removeListener(mouseUpEvt)
 		addListener(mouseHoverEvt)
@@ -169,7 +169,7 @@ export function controlDouble(params) {
 	const wrap = makeOffsetWrapper(offsetElem)
 
 	const mousedown = wrap(function mousedown(/** @type {MouseEvent} */ e, dx, dy) {
-		if (e.button != 0) return false
+		if (e.button !== 0) return false
 		addListener(mouseMoveEvt)
 		addListener(mouseUpEvt)
 		removeListener(mouseHoverEvt)
@@ -181,7 +181,7 @@ export function controlDouble(params) {
 	})
 
 	const mouseup = wrap(function mouseup(/** @type {MouseEvent} */ e, dx, dy) {
-		if (e.button != 0) return false
+		if (e.button !== 0) return false
 		removeListener(mouseMoveEvt)
 		removeListener(mouseUpEvt)
 		addListener(mouseHoverEvt)
@@ -240,12 +240,12 @@ export function controlDouble(params) {
 
 	const touchmove = wrap(function touchmove(/** @type {TouchEvent} */ e, dx, dy) {
 		const curCount = touchIds.length
-		if (curCount == 1) {
+		if (curCount === 1) {
 			const t0 = findTouch(e.changedTouches, touchIds[0])
 			if (t0 === null) return false
 			return singleMove(e, touchIds[0], t0.clientX + dx, t0.clientY + dy)
 		}
-		if (curCount == 2) {
+		if (curCount === 2) {
 			// can not use e.changedTouches: one of touches may have not changed
 			const t0 = mustFindTouch(e.touches, touchIds[0])
 			const t1 = mustFindTouch(e.touches, touchIds[1])
@@ -292,7 +292,7 @@ export function controlDouble(params) {
 		const preventUp2 = doubleUp(e, tid0, tid1)
 		const preventDown1 = singleDown(e, tLast.identifier, tLast.clientX + dx, tLast.clientY + dy, true)
 		let preventUp1 = /**@type {void|boolean}*/ (false)
-		if (curCount == 2 && releasedTouches.length === 2) {
+		if (curCount === 2 && releasedTouches.length === 2) {
 			preventUp1 = singleUp(e, tLast.identifier, false)
 		}
 		return preventUp2 || preventDown1 || preventUp1
