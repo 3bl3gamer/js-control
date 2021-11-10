@@ -29,7 +29,7 @@ function fakeTouch(id, target, clientX, clientY) {
 
 describe('controlSingle', () => {
 	let c
-	/** @type {Required<{[K in keyof Parameters<typeof controlSingle>[0]['callbacks']]: import('sinon').SinonSpy}>} */
+	/** @type {Required<{[K in keyof Parameters<typeof controlSingle>[0]]: import('sinon').SinonSpy}>} */
 	let callbacks
 	let startElem
 	beforeEach(() => {
@@ -43,7 +43,8 @@ describe('controlSingle', () => {
 		}
 		startElem = document.body.getElementsByClassName('startElem')[0]
 		startElem.getBoundingClientRect = () => /**@type {*}*/ ({ left: -1000, top: -2000 })
-		c = controlSingle({ startElem, callbacks })
+		c = controlSingle(callbacks)
+		c.on({ startElem })
 	})
 	/**
 	 * @param {Element} elem
@@ -225,7 +226,7 @@ describe('controlSingle', () => {
 		})
 		it('should reattach listeners', () => {
 			c.off()
-			c.on()
+			c.on({ startElem })
 			dispatchMouse(startElem, 'mousedown', {})
 			dispatchMouse(startElem, 'mouseup', {})
 			dispatchTouch(startElem, 'touchstart', {
@@ -240,7 +241,7 @@ describe('controlSingle', () => {
 
 describe('controlDouble', () => {
 	let c
-	/** @type {Required<{[K in keyof Parameters<typeof controlDouble>[0]['callbacks']]: import('sinon').SinonSpy}>} */
+	/** @type {Required<{[K in keyof Parameters<typeof controlDouble>[0]]: import('sinon').SinonSpy}>} */
 	let callbacks
 	let startElem
 	beforeEach(() => {
@@ -257,7 +258,8 @@ describe('controlDouble', () => {
 		}
 		startElem = document.body.getElementsByClassName('startElem')[0]
 		startElem.getBoundingClientRect = () => /**@type {*}*/ ({ left: -1000, top: -2000 })
-		c = controlDouble({ startElem, callbacks })
+		c = controlDouble(callbacks)
+		c.on({ startElem })
 	})
 
 	/**
@@ -535,7 +537,7 @@ describe('controlDouble', () => {
 		})
 		it('should reattach listeners', () => {
 			c.off()
-			c.on()
+			c.on({ startElem })
 			dispatchMouse(startElem, 'mousedown', {})
 			dispatchMouse(startElem, 'mouseup', {})
 			dispatchTouch(startElem, 'touchstart', {

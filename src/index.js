@@ -1,33 +1,86 @@
 /** @typedef {[EventTarget, string, (e:any) => void]} Evt */
+/** @typedef {[allEents:Evt[], autoOnEvents:Evt[]]} EvtGroup */
 
 /**
- * @param {{
+ * @typedef {{
+ *   singleDown?: (e:MouseEvent|TouchEvent, id:'mouse'|number, x:number, y:number) => boolean|void,
+ *   singleMove?: (e:MouseEvent|TouchEvent, id:'mouse'|number, x:number, y:number) => void|boolean,
+ *   singleUp?:   (e:MouseEvent|TouchEvent, id:'mouse'|number) => void|boolean,
+ * }} SingleMoveCallbacks
+ */
+
+/**
+ * @typedef {{
+ *   singleHover?: (e:MouseEvent, x:number, y:number) => void|boolean,
+ *   singleLeave?: (e:MouseEvent, x:number, y:number) => void|boolean,
+ * }} SingleHoverCallbacks
+ */
+
+/**
+ * @typedef {{
+ *   singleDown?: (e:MouseEvent|TouchEvent, id:'mouse'|number, x:number, y:number, isSwitching:boolean) => boolean|void,
+ *   singleMove?: (e:MouseEvent|TouchEvent, id:'mouse'|number, x:number, y:number) => void|boolean,
+ *   singleUp?:   (e:MouseEvent|TouchEvent, id:'mouse'|number, isSwitching:boolean) => void|boolean,
+ *   doubleDown?: (e:TouchEvent, id0:number, x0:number, y0:number, id1:number, x1:number, y1:number) => void|boolean,
+ *   doubleMove?: (e:TouchEvent, id0:number, x0:number, y0:number, id1:number, x1:number, y1:number) => void|boolean,
+ *   doubleUp?:   (e:TouchEvent, id0:number, id1:number) => void|boolean,
+ * }} DoubleMoveCallbacks
+ */
+
+/**
+ * @typedef {{
+ *   wheelRot?: (e:WheelEvent, deltaX:number, deltaY:number, deltaZ:number, x:number, y:number) => void|boolean,
+ * }} WheelCallbacks
+ */
+
+/**
+ * @typedef {{
  *   startElem: Element,
  *   moveElem?: EventTarget|null,
  *   offsetElem?: Element|null|'no-offset',
- *   leaveElem?: EventTarget|null,
- *   callbacks: {
- *     singleDown?: (e:MouseEvent|TouchEvent, id:'mouse'|number, x:number, y:number) => boolean|void,
- *     singleMove?: (e:MouseEvent|TouchEvent, id:'mouse'|number, x:number, y:number) => void|boolean,
- *     singleUp?: (e:MouseEvent|TouchEvent, id:'mouse'|number) => void|boolean,
- *     singleHover?: (e:MouseEvent, x:number, y:number) => void|boolean,
- *     singleLeave?: (e:MouseEvent, x:number, y:number) => void|boolean,
- *     wheelRot?: (e:WheelEvent, deltaX:number, deltaY:number, deltaZ:number, x:number, y:number) => void|boolean,
- *   },
- * }} params
+ * }} MoveElemsCfg
  */
-export function controlSingle(params) {
-	const { startElem, callbacks } = params
-	const moveElem = params.moveElem ?? window
-	const offsetElem = params.offsetElem ?? startElem
-	const leaveElem = params.leaveElem ?? startElem
+
+/**
+ * @typedef {{
+ *   startElem: Element,
+ *   leaveElem?: EventTarget|null,
+ * }} HoverElemsCfg
+ */
+
+/**
+ * @typedef {{
+ *   startElem: Element,
+ *   offsetElem?: Element|null|'no-offset',
+ * }} WheelElemsCfg
+ */
+
+/**
+ * @param {SingleMoveCallbacks & SingleHoverCallbacks & WheelCallbacks} callbacks
+ */
+export function controlSingle(callbacks) {
+	/** @type {Element} */ let startElem
+	/** @type {EventTarget} */ let moveElem
+	/** @type {EventTarget} */ let leaveElem
+	/** @type {Element|null} */ let offsetElem
+
+	/** @type {Evt} */ let mouseDownEvt
+	/** @type {Evt} */ let mouseMoveEvt
+	/** @type {Evt} */ let mouseUpEvt
+	/** @type {Evt} */ let wheelEvt
+	/** @type {Evt} */ let mouseHoverEvt
+	/** @type {Evt} */ let mouseLeaveEvt
+	/** @type {Evt} */ let touchStartEvt
+	/** @type {Evt} */ let touchMoveEvt
+	/** @type {Evt} */ let touchEndEvt
+	/** @type {Evt} */ let touchCancelEvt
 
 	const { singleDown = noop, singleMove = noop, singleUp = noop } = callbacks
 	const { singleHover = noop, singleLeave = noop, wheelRot = noop } = callbacks
 
 	let touchId = /** @type {number|null} */ (null)
 
-	const wrap = makeOffsetWrapper(offsetElem)
+	const wrap = makeOffsetWrapper(() => offsetElem)
 
 	const mousedown = wrap(function mousedown(/** @type {MouseEvent} */ e, dx, dy) {
 		if (e.button !== 0) return false
@@ -97,68 +150,73 @@ export function controlSingle(params) {
 
 	const mousewheel = makeWheelListener(wrap, wheelRot)
 
-	const mouseDownEvt = /** @type {Evt} */ ([startElem, 'mousedown', mousedown])
-	const mouseMoveEvt = /** @type {Evt} */ ([moveElem, 'mousemove', mousemove])
-	const mouseUpEvt = /** @type {Evt} */ ([moveElem, 'mouseup', mouseup])
-	const wheelEvt = /** @type {Evt} */ ([startElem, 'wheel', mousewheel])
-	const mouseHoverEvt = /** @type {Evt} */ ([startElem, 'mousemove', mousemoveHover])
-	const mouseLeaveEvt = /** @type {Evt} */ ([leaveElem, 'mouseleave', mouseleave])
-	const touchStartEvt = /** @type {Evt} */ ([startElem, 'touchstart', touchstart])
-	const touchMoveEvt = /** @type {Evt} */ ([moveElem, 'touchmove', touchmove])
-	const touchEndEvt = /** @type {Evt} */ ([moveElem, 'touchend', touchend])
-	const touchCancelEvt = /** @type {Evt} */ ([moveElem, 'touchcancel', touchcancel])
-	// prettier-ignore
-	const events = [
-		mouseDownEvt, mouseMoveEvt, mouseUpEvt, mouseHoverEvt, mouseLeaveEvt, wheelEvt,
-		touchStartEvt, touchMoveEvt, touchEndEvt, touchCancelEvt,
-	]
-	const autoOnEvents = [mouseDownEvt, touchStartEvt, mouseHoverEvt, mouseLeaveEvt, wheelEvt]
+	return makeEventsToggler((/**@type {MoveElemsCfg & HoverElemsCfg}*/ elems) => {
+		startElem = elems.startElem
+		moveElem = elems.moveElem ?? window
+		leaveElem = elems.leaveElem ?? startElem
+		offsetElem = nullUnlessOffset(elems.offsetElem, startElem)
 
-	return makeEventsToggler(events, autoOnEvents)
+		mouseDownEvt = /** @type {Evt} */ ([startElem, 'mousedown', mousedown])
+		mouseMoveEvt = /** @type {Evt} */ ([moveElem, 'mousemove', mousemove])
+		mouseUpEvt = /** @type {Evt} */ ([moveElem, 'mouseup', mouseup])
+		wheelEvt = /** @type {Evt} */ ([startElem, 'wheel', mousewheel])
+		mouseHoverEvt = /** @type {Evt} */ ([startElem, 'mousemove', mousemoveHover])
+		mouseLeaveEvt = /** @type {Evt} */ ([leaveElem, 'mouseleave', mouseleave])
+		touchStartEvt = /** @type {Evt} */ ([startElem, 'touchstart', touchstart])
+		touchMoveEvt = /** @type {Evt} */ ([moveElem, 'touchmove', touchmove])
+		touchEndEvt = /** @type {Evt} */ ([moveElem, 'touchend', touchend])
+		touchCancelEvt = /** @type {Evt} */ ([moveElem, 'touchcancel', touchcancel])
+
+		// prettier-ignore
+		const events = [
+			mouseDownEvt, mouseMoveEvt, mouseUpEvt, mouseHoverEvt, mouseLeaveEvt, wheelEvt,
+			touchStartEvt, touchMoveEvt, touchEndEvt, touchCancelEvt,
+		]
+		const autoOnEvents = [mouseDownEvt, touchStartEvt, mouseHoverEvt, mouseLeaveEvt, wheelEvt]
+		return [events, autoOnEvents]
+	})
 }
 
 /**
- * @param {{
- *   startElem: Element,
- *   offsetElem?: Element|null|'no-offset',
- *   wheelRot: (e:WheelEvent, deltaX:number, deltaY:number, deltaZ:number, x:number, y:number) => void|boolean,
- * }} params
+ * @param {WheelCallbacks} callbacks
  */
-export function controlWheel(params) {
-	const { startElem, wheelRot } = params
-	const offsetElem = params.offsetElem ?? startElem
+export function controlWheel(callbacks) {
+	const wheelRot = callbacks.wheelRot ?? noop
 
-	const wrap = makeOffsetWrapper(offsetElem)
+	/** @type {Element|null} */ let offsetElem
+
+	const wrap = makeOffsetWrapper(() => offsetElem)
 	const mousewheel = makeWheelListener(wrap, wheelRot)
-	const wheelEvt = /** @type {Evt} */ ([startElem, 'wheel', mousewheel])
 
-	return makeEventsToggler([], [wheelEvt])
+	return makeEventsToggler((/**@type {MoveElemsCfg}*/ elems) => {
+		const startElem = elems.startElem
+		offsetElem = nullUnlessOffset(elems.offsetElem, startElem)
+
+		const wheelEvt = /** @type {Evt} */ ([startElem, 'wheel', mousewheel])
+
+		return [[wheelEvt], [wheelEvt]]
+	})
 }
 
 /**
- * @param {{
- *   startElem: Element,
- *   moveElem?: EventTarget|null,
- *   offsetElem?: Element|null,
- *   leaveElem?: EventTarget|null,
- *   callbacks: {
- *     singleDown?: (e:MouseEvent|TouchEvent, id:'mouse'|number, x:number, y:number, isSwitching:boolean) => boolean|void,
- *     singleMove?: (e:MouseEvent|TouchEvent, id:'mouse'|number, x:number, y:number) => void|boolean,
- *     singleUp?: (e:MouseEvent|TouchEvent, id:'mouse'|number, isSwitching:boolean) => void|boolean,
- *     singleHover?: (e:MouseEvent, x:number, y:number) => void|boolean,
- *     singleLeave?: (e:MouseEvent, x:number, y:number) => void|boolean,
- *     doubleDown?: (e:TouchEvent, id0:number, x0:number, y0:number, id1:number, x1:number, y1:number) => void|boolean,
- *     doubleMove?: (e:TouchEvent, id0:number, x0:number, y0:number, id1:number, x1:number, y1:number) => void|boolean,
- *     doubleUp?: (e:TouchEvent, id0:number, id1:number) => void|boolean,
- *     wheelRot?: (e:WheelEvent, deltaX:number, deltaY:number, deltaZ:number, x:number, y:number) => void|boolean,
- *   },
- * }} params
+ * @param {DoubleMoveCallbacks & SingleHoverCallbacks & WheelCallbacks} callbacks
  */
-export function controlDouble(params) {
-	const { startElem, callbacks } = params
-	const moveElem = params.moveElem ?? window
-	const offsetElem = params.offsetElem ?? startElem
-	const leaveElem = params.leaveElem ?? startElem
+export function controlDouble(callbacks) {
+	/** @type {Element} */ let startElem
+	/** @type {EventTarget} */ let moveElem
+	/** @type {EventTarget} */ let leaveElem
+	/** @type {Element|null} */ let offsetElem
+
+	/** @type {Evt} */ let mouseDownEvt
+	/** @type {Evt} */ let mouseMoveEvt
+	/** @type {Evt} */ let mouseUpEvt
+	/** @type {Evt} */ let wheelEvt
+	/** @type {Evt} */ let mouseHoverEvt
+	/** @type {Evt} */ let mouseLeaveEvt
+	/** @type {Evt} */ let touchStartEvt
+	/** @type {Evt} */ let touchMoveEvt
+	/** @type {Evt} */ let touchEndEvt
+	/** @type {Evt} */ let touchCancelEvt
 
 	const { singleDown = noop, singleMove = noop, singleUp = noop } = callbacks
 	const { doubleDown = noop, doubleMove = noop, doubleUp = noop } = callbacks
@@ -166,7 +224,7 @@ export function controlDouble(params) {
 
 	const touchIds = /** @type {number[]} */ ([])
 
-	const wrap = makeOffsetWrapper(offsetElem)
+	const wrap = makeOffsetWrapper(() => offsetElem)
 
 	const mousedown = wrap(function mousedown(/** @type {MouseEvent} */ e, dx, dy) {
 		if (e.button !== 0) return false
@@ -304,32 +362,39 @@ export function controlDouble(params) {
 
 	const mousewheel = makeWheelListener(wrap, wheelRot)
 
-	const mouseDownEvt = /** @type {Evt} */ ([startElem, 'mousedown', mousedown])
-	const mouseMoveEvt = /** @type {Evt} */ ([moveElem, 'mousemove', mousemove])
-	const mouseUpEvt = /** @type {Evt} */ ([moveElem, 'mouseup', mouseup])
-	const wheelEvt = /** @type {Evt} */ ([startElem, 'wheel', mousewheel])
-	const mouseHoverEvt = /** @type {Evt} */ ([startElem, 'mousemove', mousemoveHover])
-	const mouseLeaveEvt = /** @type {Evt} */ ([leaveElem, 'mouseleave', mouseleave])
-	const touchStartEvt = /** @type {Evt} */ ([startElem, 'touchstart', touchstart])
-	const touchMoveEvt = /** @type {Evt} */ ([moveElem, 'touchmove', touchmove])
-	const touchEndEvt = /** @type {Evt} */ ([moveElem, 'touchend', touchend])
-	const touchCancelEvt = /** @type {Evt} */ ([moveElem, 'touchcancel', touchcancel])
-	// prettier-ignore
-	const events = [
-		mouseDownEvt, mouseMoveEvt, mouseUpEvt, mouseHoverEvt, mouseLeaveEvt, wheelEvt,
-		touchStartEvt, touchMoveEvt, touchEndEvt, touchCancelEvt,
-	]
-	const autoOnEvents = [mouseDownEvt, touchStartEvt, mouseHoverEvt, mouseLeaveEvt, wheelEvt]
+	return makeEventsToggler((/**@type {MoveElemsCfg & HoverElemsCfg}*/ elems) => {
+		startElem = elems.startElem
+		moveElem = elems.moveElem ?? window
+		leaveElem = elems.leaveElem ?? startElem
+		offsetElem = nullUnlessOffset(elems.offsetElem, startElem)
 
-	return makeEventsToggler(events, autoOnEvents)
+		mouseDownEvt = /** @type {Evt} */ ([startElem, 'mousedown', mousedown])
+		mouseMoveEvt = /** @type {Evt} */ ([moveElem, 'mousemove', mousemove])
+		mouseUpEvt = /** @type {Evt} */ ([moveElem, 'mouseup', mouseup])
+		wheelEvt = /** @type {Evt} */ ([startElem, 'wheel', mousewheel])
+		mouseHoverEvt = /** @type {Evt} */ ([startElem, 'mousemove', mousemoveHover])
+		mouseLeaveEvt = /** @type {Evt} */ ([leaveElem, 'mouseleave', mouseleave])
+		touchStartEvt = /** @type {Evt} */ ([startElem, 'touchstart', touchstart])
+		touchMoveEvt = /** @type {Evt} */ ([moveElem, 'touchmove', touchmove])
+		touchEndEvt = /** @type {Evt} */ ([moveElem, 'touchend', touchend])
+		touchCancelEvt = /** @type {Evt} */ ([moveElem, 'touchcancel', touchcancel])
+
+		// prettier-ignore
+		const events = [
+			mouseDownEvt, mouseMoveEvt, mouseUpEvt, mouseHoverEvt, mouseLeaveEvt, wheelEvt,
+			touchStartEvt, touchMoveEvt, touchEndEvt, touchCancelEvt,
+		]
+		const autoOnEvents = [mouseDownEvt, touchStartEvt, mouseHoverEvt, mouseLeaveEvt, wheelEvt]
+		return [events, autoOnEvents]
+	})
 }
 
 function noop() {}
 
 /**
- * @param {Element|'no-offset'} offsetElem
+ * @param {() => Element|null|undefined} getOffsetElem
  */
-function makeOffsetWrapper(offsetElem) {
+function makeOffsetWrapper(getOffsetElem) {
 	/**
 	 * @template {Event} T
 	 * @param {(e:T, x:number, y:number) => boolean|void} func
@@ -339,13 +404,21 @@ function makeOffsetWrapper(offsetElem) {
 		return e => {
 			let dx = 0
 			let dy = 0
-			if (offsetElem !== 'no-offset') {
-				;({ left: dx, top: dy } = offsetElem.getBoundingClientRect())
-			}
+			const elem = getOffsetElem()
+			if (elem) ({ left: dx, top: dy } = elem.getBoundingClientRect())
 			func(e, -dx, -dy) && e.preventDefault()
 		}
 	}
 	return wrap
+}
+
+/**
+ * @param {Element|null|undefined|'no-offset'} elem
+ * @param {Element} defaultElem
+ */
+function nullUnlessOffset(elem, defaultElem) {
+	if (elem === 'no-offset') return null
+	return elem ?? defaultElem
 }
 
 /**
@@ -364,31 +437,28 @@ function makeWheelListener(wrap, wheelRot) {
 }
 
 /**
- * @param {Evt[]} allEents
- * @param {Evt[]} autoOnEvents
+ * @template TElemsCfg
+ * @param {(elems: TElemsCfg) => EvtGroup} getEvents
  */
-function makeEventsToggler(allEents, autoOnEvents) {
-	let isOn = false
-	/** @param {boolean|null|undefined} on */
-	function toggle(on) {
-		on = on ?? !isOn
-		if (isOn === on) return
-		if (on) autoOnEvents.map(addListener)
-		else allEents.map(removeListener)
-		isOn = on
-	}
+function makeEventsToggler(getEvents) {
+	let events = /**@type {(EvtGroup|null)}*/ (null)
 
-	toggle(true)
 	return {
-		toggle,
 		get isOn() {
-			return isOn
+			return !!events
 		},
-		on() {
-			toggle(true)
+		/** @param {TElemsCfg} elems */
+		on(elems) {
+			if (events) return
+			events = getEvents(elems)
+			const autoOnEvents = events[1]
+			autoOnEvents.map(addListener)
 		},
 		off() {
-			toggle(false)
+			if (!events) return
+			const allEents = events[0]
+			allEents.map(removeListener)
+			events = null
 		},
 	}
 }
