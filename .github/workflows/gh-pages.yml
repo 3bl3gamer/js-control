@@ -30,10 +30,10 @@ jobs:
           node-version: 16.11.1
 
       - run: npm install #--release
-        working-directory: ${{ env.GITHUB_WORKSPACE }}/repo
+        working-directory: repo
 
       - run: npm run build-examples
-        working-directory: ${{ env.GITHUB_WORKSPACE }}/repo
+        working-directory: repo
 
       - name: Git user info
         run: |
@@ -41,7 +41,7 @@ jobs:
           git config --global user.name "${GITHUB_ACTOR}"
 
       - name: Preparing files
-        working-directory: ${{ env.GITHUB_WORKSPACE }}/repo
+        working-directory: repo
         run: |
           mkdir ../new_content
           mv ./examples/dist ../new_content/examples
@@ -53,7 +53,7 @@ jobs:
           rm -r ../new_content
 
       - name: Pushing build
-        working-directory: ${{ env.GITHUB_WORKSPACE }}/repo
+        working-directory: repo
         run: |
           git add --all
           git diff-index --quiet --cached HEAD -- && echo "no changes" && exit 0
