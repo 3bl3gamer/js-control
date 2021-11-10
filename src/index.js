@@ -1,335 +1,285 @@
 /** @typedef {[EventTarget, string, (e:any) => void]} Evt */
+/** @typedef {[allEents:Evt[], autoOnEvents:Evt[]]} EvtGroup */
 
 /**
- * @param {{
- *   startElem: Element,
- *   moveElem?: EventTarget|null,
- *   offsetElem?: Element|null|'no-offset',
- *   leaveElem?: EventTarget|null,
- *   callbacks: {
- *     singleDown?: (e:MouseEvent|TouchEvent, id:'mouse'|number, x:number, y:number) => boolean|void,
- *     singleMove?: (e:MouseEvent|TouchEvent, id:'mouse'|number, x:number, y:number) => void|boolean,
- *     singleUp?: (e:MouseEvent|TouchEvent, id:'mouse'|number) => void|boolean,
- *     singleHover?: (e:MouseEvent, x:number, y:number) => void|boolean,
- *     singleLeave?: (e:MouseEvent, x:number, y:number) => void|boolean,
- *     wheelRot?: (e:WheelEvent, deltaX:number, deltaY:number, deltaZ:number, x:number, y:number) => void|boolean,
- *   },
- * }} params
+ * @typedef {{
+ *   singleDown: (e:PointerEvent, x:number, y:number) => boolean|void,
+ *   singleMove: (e:PointerEvent, x:number, y:number) => void|boolean,
+ *   singleUp: (e:PointerEvent) => void|boolean,
+ * }} SingleMoveCallbacks
  */
-export function controlSingle(params) {
-	const { startElem, callbacks } = params
-	const moveElem = params.moveElem ?? window
-	const offsetElem = params.offsetElem ?? startElem
-	const leaveElem = params.leaveElem ?? startElem
-
-	const { singleDown = noop, singleMove = noop, singleUp = noop } = callbacks
-	const { singleHover = noop, singleLeave = noop, wheelRot = noop } = callbacks
-
-	let touchId = /** @type {number|null} */ (null)
-
-	const wrap = makeOffsetWrapper(offsetElem)
-
-	const mousedown = wrap(function mousedown(/** @type {MouseEvent} */ e, dx, dy) {
-		if (e.button !== 0) return false
-		addListener(mouseMoveEvt)
-		addListener(mouseUpEvt)
-		removeListener(mouseHoverEvt)
-		return singleDown(e, 'mouse', e.clientX + dx, e.clientY + dy)
-	})
-
-	const mousemove = wrap(function mousemove(/** @type {MouseEvent} */ e, dx, dy) {
-		return singleMove(e, 'mouse', e.clientX + dx, e.clientY + dy)
-	})
-
-	const mouseup = wrap(function mouseup(/** @type {MouseEvent} */ e, dx, dy) {
-		if (e.button !== 0) return false
-		removeListener(mouseMoveEvt)
-		removeListener(mouseUpEvt)
-		addListener(mouseHoverEvt)
-		return singleUp(e, 'mouse')
-	})
-
-	const mousemoveHover = wrap(function mousemoveHover(/** @type {MouseEvent} */ e, dx, dy) {
-		return singleHover(e, e.clientX + dx, e.clientY + dy)
-	})
-
-	const mouseleave = wrap(function mouseleave(/** @type {MouseEvent} */ e, dx, dy) {
-		return singleLeave(e, e.clientX + dx, e.clientY + dy)
-	})
-
-	const touchstart = wrap(function touchstart(/** @type {TouchEvent} */ e, dx, dy) {
-		if (touchId !== null) return false
-
-		addListener(touchMoveEvt)
-		addListener(touchEndEvt)
-		addListener(touchCancelEvt)
-
-		const t = e.changedTouches[0]
-		touchId = t.identifier
-		return singleDown(e, touchId, t.clientX + dx, t.clientY + dy)
-	})
-
-	const touchmove = wrap(function touchmove(/** @type {TouchEvent} */ e, dx, dy) {
-		if (touchId === null) return false
-		const touch = findTouch(e.changedTouches, touchId)
-		if (touch === null) return false
-		return singleMove(e, touchId, touch.clientX + dx, touch.clientY + dy)
-	})
-
-	const touchend = wrap(function touchend(/** @type {TouchEvent} */ e, dx, dy) {
-		if (touchId === null) return false
-
-		const releasedTouch = findTouch(e.changedTouches, touchId)
-		if (releasedTouch === null) return false
-
-		touchId = null
-
-		removeListener(touchMoveEvt)
-		removeListener(touchEndEvt)
-		removeListener(touchCancelEvt)
-
-		return singleUp(e, releasedTouch.identifier)
-	})
-
-	const touchcancel = wrap(function touchcancel(/** @type {TouchEvent} */ e, dx, dy) {
-		touchend(e)
-	})
-
-	const mousewheel = makeWheelListener(wrap, wheelRot)
-
-	const mouseDownEvt = /** @type {Evt} */ ([startElem, 'mousedown', mousedown])
-	const mouseMoveEvt = /** @type {Evt} */ ([moveElem, 'mousemove', mousemove])
-	const mouseUpEvt = /** @type {Evt} */ ([moveElem, 'mouseup', mouseup])
-	const wheelEvt = /** @type {Evt} */ ([startElem, 'wheel', mousewheel])
-	const mouseHoverEvt = /** @type {Evt} */ ([startElem, 'mousemove', mousemoveHover])
-	const mouseLeaveEvt = /** @type {Evt} */ ([leaveElem, 'mouseleave', mouseleave])
-	const touchStartEvt = /** @type {Evt} */ ([startElem, 'touchstart', touchstart])
-	const touchMoveEvt = /** @type {Evt} */ ([moveElem, 'touchmove', touchmove])
-	const touchEndEvt = /** @type {Evt} */ ([moveElem, 'touchend', touchend])
-	const touchCancelEvt = /** @type {Evt} */ ([moveElem, 'touchcancel', touchcancel])
-	// prettier-ignore
-	const events = [
-		mouseDownEvt, mouseMoveEvt, mouseUpEvt, mouseHoverEvt, mouseLeaveEvt, wheelEvt,
-		touchStartEvt, touchMoveEvt, touchEndEvt, touchCancelEvt,
-	]
-	const autoOnEvents = [mouseDownEvt, touchStartEvt, mouseHoverEvt, mouseLeaveEvt, wheelEvt]
-
-	return makeEventsToggler(events, autoOnEvents)
-}
 
 /**
- * @param {{
- *   startElem: Element,
- *   offsetElem?: Element|null|'no-offset',
+ * @typedef {{
+ *   singleHover: (e:PointerEvent, x:number, y:number) => void|boolean,
+ *   singleLeave: (e:PointerEvent, x:number, y:number) => void|boolean,
+ * }} SingleHoverCallbacks
+ */
+
+/**
+ * @typedef {{
+ *   singleDown: (e:PointerEvent, x:number, y:number, isSwitching:boolean) => boolean|void,
+ *   singleMove: (e:PointerEvent, x:number, y:number) => void|boolean,
+ *   singleUp:   (e:PointerEvent, isSwitching:boolean) => void|boolean,
+ *   doubleDown: (e:PointerEvent, e0:PointerEvent, e1:PointerEvent, x0:number, y0:number, x1:number, y1:number) => void|boolean,
+ *   doubleMove: (e:PointerEvent, e0:PointerEvent, e1:PointerEvent, x0:number, y0:number, x1:number, y1:number) => void|boolean,
+ *   doubleUp:   (e:PointerEvent, e0:PointerEvent, e1:PointerEvent) => void|boolean,
+ * }} DoubleMoveCallbacks
+ */
+
+/**
+ * @typedef {{
  *   wheelRot: (e:WheelEvent, deltaX:number, deltaY:number, deltaZ:number, x:number, y:number) => void|boolean,
- * }} params
+ * }} WheelCallbacks
  */
-export function controlWheel(params) {
-	const { startElem, wheelRot } = params
-	const offsetElem = params.offsetElem ?? startElem
-
-	const wrap = makeOffsetWrapper(offsetElem)
-	const mousewheel = makeWheelListener(wrap, wheelRot)
-	const wheelEvt = /** @type {Evt} */ ([startElem, 'wheel', mousewheel])
-
-	return makeEventsToggler([], [wheelEvt])
-}
 
 /**
- * @param {{
+ * @typedef {{
  *   startElem: Element,
  *   moveElem?: EventTarget|null,
- *   offsetElem?: Element|null,
- *   leaveElem?: EventTarget|null,
- *   callbacks: {
- *     singleDown?: (e:MouseEvent|TouchEvent, id:'mouse'|number, x:number, y:number, isSwitching:boolean) => boolean|void,
- *     singleMove?: (e:MouseEvent|TouchEvent, id:'mouse'|number, x:number, y:number) => void|boolean,
- *     singleUp?: (e:MouseEvent|TouchEvent, id:'mouse'|number, isSwitching:boolean) => void|boolean,
- *     singleHover?: (e:MouseEvent, x:number, y:number) => void|boolean,
- *     singleLeave?: (e:MouseEvent, x:number, y:number) => void|boolean,
- *     doubleDown?: (e:TouchEvent, id0:number, x0:number, y0:number, id1:number, x1:number, y1:number) => void|boolean,
- *     doubleMove?: (e:TouchEvent, id0:number, x0:number, y0:number, id1:number, x1:number, y1:number) => void|boolean,
- *     doubleUp?: (e:TouchEvent, id0:number, id1:number) => void|boolean,
- *     wheelRot?: (e:WheelEvent, deltaX:number, deltaY:number, deltaZ:number, x:number, y:number) => void|boolean,
- *   },
- * }} params
+ *   offsetElem?: Element|null|'no-offset',
+ * }} MoveElemsCfg
  */
-export function controlDouble(params) {
-	const { startElem, callbacks } = params
-	const moveElem = params.moveElem ?? window
-	const offsetElem = params.offsetElem ?? startElem
-	const leaveElem = params.leaveElem ?? startElem
-
-	const { singleDown = noop, singleMove = noop, singleUp = noop } = callbacks
-	const { doubleDown = noop, doubleMove = noop, doubleUp = noop } = callbacks
-	const { singleHover = noop, singleLeave = noop, wheelRot = noop } = callbacks
-
-	const touchIds = /** @type {number[]} */ ([])
-
-	const wrap = makeOffsetWrapper(offsetElem)
-
-	const mousedown = wrap(function mousedown(/** @type {MouseEvent} */ e, dx, dy) {
-		if (e.button !== 0) return false
-		addListener(mouseMoveEvt)
-		addListener(mouseUpEvt)
-		removeListener(mouseHoverEvt)
-		return singleDown(e, 'mouse', e.clientX + dx, e.clientY + dy, false)
-	})
-
-	const mousemove = wrap(function mousemove(/** @type {MouseEvent} */ e, dx, dy) {
-		return singleMove(e, 'mouse', e.clientX + dx, e.clientY + dy)
-	})
-
-	const mouseup = wrap(function mouseup(/** @type {MouseEvent} */ e, dx, dy) {
-		if (e.button !== 0) return false
-		removeListener(mouseMoveEvt)
-		removeListener(mouseUpEvt)
-		addListener(mouseHoverEvt)
-		return singleUp(e, 'mouse', false)
-	})
-
-	const mousemoveHover = wrap(function mousemoveHover(/** @type {MouseEvent} */ e, dx, dy) {
-		return singleHover(e, e.clientX + dx, e.clientY + dy)
-	})
-
-	const mouseleave = wrap(function mouseleave(/** @type {MouseEvent} */ e, dx, dy) {
-		return singleLeave(e, e.clientX + dx, e.clientY + dy)
-	})
-
-	const touchstart = wrap(function touchstart(/** @type {TouchEvent} */ e, dx, dy) {
-		const curCount = touchIds.length
-		if (curCount === 2) return false
-		const changedTouches = e.changedTouches
-
-		if (curCount === 0) {
-			addListener(touchMoveEvt)
-			addListener(touchEndEvt)
-			addListener(touchCancelEvt)
-		}
-
-		if (curCount === 0 && changedTouches.length === 1) {
-			const t = e.changedTouches[0]
-			touchIds.push(t.identifier)
-			return singleDown(e, touchIds[0], t.clientX + dx, t.clientY + dy, false)
-		}
-
-		let t0, t1
-		let prevent = /**@type {void|boolean}*/ (false)
-		if (curCount === 0) {
-			// and changedTouches.length >= 2
-			t0 = changedTouches[0]
-			t1 = changedTouches[1]
-			touchIds.push(t0.identifier)
-			prevent = singleDown(e, t0.identifier, t0.clientX + dx, t0.clientY + dy, false)
-		} else {
-			// curCount === 1 and changedTouches.length >= 1
-			t0 = mustFindTouch(e.touches, touchIds[0])
-			t1 = e.changedTouches[0]
-		}
-		touchIds.push(t1.identifier)
-		const prevetUp = singleUp(e, t0.identifier, true)
-		prevent = prevent || prevetUp
-
-		const x0 = t0.clientX + dx
-		const y0 = t0.clientY + dy
-		const x1 = t1.clientX + dx
-		const y1 = t1.clientY + dy
-		const preventDouble = doubleDown(e, touchIds[0], x0, y0, touchIds[1], x1, y1)
-		return prevent || preventDouble
-	})
-
-	const touchmove = wrap(function touchmove(/** @type {TouchEvent} */ e, dx, dy) {
-		const curCount = touchIds.length
-		if (curCount === 1) {
-			const t0 = findTouch(e.changedTouches, touchIds[0])
-			if (t0 === null) return false
-			return singleMove(e, touchIds[0], t0.clientX + dx, t0.clientY + dy)
-		}
-		if (curCount === 2) {
-			// can not use e.changedTouches: one of touches may have not changed
-			const t0 = mustFindTouch(e.touches, touchIds[0])
-			const t1 = mustFindTouch(e.touches, touchIds[1])
-			const x0 = t0.clientX + dx
-			const y0 = t0.clientY + dy
-			const x1 = t1.clientX + dx
-			const y1 = t1.clientY + dy
-			return doubleMove(e, touchIds[0], x0, y0, touchIds[1], x1, y1)
-		}
-	})
-
-	const releasedTouches = /** @type {Touch[]} */ ([])
-	const touchend = wrap(function touchend(/** @type {TouchEvent} */ e, dx, dy) {
-		const curCount = touchIds.length
-		if (curCount === 0) return false
-
-		const tid0 = touchIds[0]
-		const tid1 = touchIds[1]
-
-		releasedTouches.length = 0
-		for (let j = touchIds.length - 1; j >= 0; j--) {
-			for (let i = 0; i < e.changedTouches.length; i++) {
-				const t = e.changedTouches[i]
-				if (t.identifier === touchIds[j]) {
-					touchIds.splice(j, 1)
-					releasedTouches.push(t)
-				}
-			}
-		}
-		if (releasedTouches.length === 0) return false
-
-		if (curCount === releasedTouches.length) {
-			removeListener(touchMoveEvt)
-			removeListener(touchEndEvt)
-			removeListener(touchCancelEvt)
-		}
-
-		if (curCount === 1 && releasedTouches.length === 1) {
-			return singleUp(e, releasedTouches[0].identifier, false)
-		}
-
-		const tLast = mustFindTouch(e.touches, releasedTouches[0].identifier === tid0 ? tid1 : tid0)
-
-		const preventUp2 = doubleUp(e, tid0, tid1)
-		const preventDown1 = singleDown(e, tLast.identifier, tLast.clientX + dx, tLast.clientY + dy, true)
-		let preventUp1 = /**@type {void|boolean}*/ (false)
-		if (curCount === 2 && releasedTouches.length === 2) {
-			preventUp1 = singleUp(e, tLast.identifier, false)
-		}
-		return preventUp2 || preventDown1 || preventUp1
-	})
-
-	const touchcancel = wrap(function touchcancel(/** @type {TouchEvent} */ e, dx, dy) {
-		touchend(e)
-	})
-
-	const mousewheel = makeWheelListener(wrap, wheelRot)
-
-	const mouseDownEvt = /** @type {Evt} */ ([startElem, 'mousedown', mousedown])
-	const mouseMoveEvt = /** @type {Evt} */ ([moveElem, 'mousemove', mousemove])
-	const mouseUpEvt = /** @type {Evt} */ ([moveElem, 'mouseup', mouseup])
-	const wheelEvt = /** @type {Evt} */ ([startElem, 'wheel', mousewheel])
-	const mouseHoverEvt = /** @type {Evt} */ ([startElem, 'mousemove', mousemoveHover])
-	const mouseLeaveEvt = /** @type {Evt} */ ([leaveElem, 'mouseleave', mouseleave])
-	const touchStartEvt = /** @type {Evt} */ ([startElem, 'touchstart', touchstart])
-	const touchMoveEvt = /** @type {Evt} */ ([moveElem, 'touchmove', touchmove])
-	const touchEndEvt = /** @type {Evt} */ ([moveElem, 'touchend', touchend])
-	const touchCancelEvt = /** @type {Evt} */ ([moveElem, 'touchcancel', touchcancel])
-	// prettier-ignore
-	const events = [
-		mouseDownEvt, mouseMoveEvt, mouseUpEvt, mouseHoverEvt, mouseLeaveEvt, wheelEvt,
-		touchStartEvt, touchMoveEvt, touchEndEvt, touchCancelEvt,
-	]
-	const autoOnEvents = [mouseDownEvt, touchStartEvt, mouseHoverEvt, mouseLeaveEvt, wheelEvt]
-
-	return makeEventsToggler(events, autoOnEvents)
-}
-
-function noop() {}
 
 /**
- * @param {Element|'no-offset'} offsetElem
+ * @typedef {{
+ *   startElem: Element,
+ *   offsetElem?: Element|null|'no-offset',
+ * }} WheelElemsCfg
  */
-function makeOffsetWrapper(offsetElem) {
+
+/**
+ * @typedef {{down?():unknown, up?():unknown}} Context
+ */
+
+/**
+ * @param {SingleMoveCallbacks} callbacks
+ * @param {Context} [context]
+ */
+export function controlSingle(callbacks, context) {
+	const { singleDown, singleMove, singleUp } = callbacks
+
+	/** @type {Element} */
+	let startElem
+	/** @type {EventTarget} */
+	let moveElem
+	/** @type {Element|null} */
+	let offsetElem
+
+	/** @type {Evt} */
+	let pointerDownEvt
+	/** @type {Evt} */
+	let pointerMoveEvt
+	/** @type {Evt} */
+	let pointerUpEvt
+	/** @type {Evt} */
+	let pointerCancelEvt
+
+	let pointerId = /** @type {number|null} */ (null)
+
+	const wrap = makeOffsetWrapper(() => offsetElem)
+
+	const pointerdown = wrap(function pointerdown(/** @type {PointerEvent} */ e, dx, dy) {
+		if (pointerId !== null) return false
+		if (e.pointerType === 'mouse' && e.button !== 0) return false
+		pointerId = e.pointerId
+		addListener(pointerMoveEvt)
+		addListener(pointerUpEvt)
+		addListener(pointerCancelEvt)
+		context?.down?.() //TODO: removeListener(mouseHoverEvt)
+		return singleDown(e, e.clientX + dx, e.clientY + dy)
+	})
+
+	const pointermove = wrap(function pointermove(/** @type {PointerEvent} */ e, dx, dy) {
+		if (e.pointerId !== pointerId) return false
+		return singleMove(e, e.clientX + dx, e.clientY + dy)
+	})
+
+	const pointerup = wrap(function pointerup(/** @type {PointerEvent} */ e, dx, dy) {
+		if (e.pointerId !== pointerId) return false
+		if (e.pointerType === 'mouse' && e.button !== 0) return false
+
+		removeListener(pointerMoveEvt)
+		removeListener(pointerUpEvt)
+		removeListener(pointerCancelEvt)
+		context?.up?.() //TODO: addListener(mouseHoverEvt)
+
+		pointerId = null
+		return singleUp(e)
+	})
+
+	const pointercancel = function pointercancel(e) {
+		pointerup(e)
+	}
+
+	return makeEventsToggler((/**@type {MoveElemsCfg}*/ elems) => {
+		startElem = elems.startElem
+		moveElem = elems.moveElem ?? window
+		offsetElem = nullUnlessOffset(elems.offsetElem, startElem)
+
+		pointerDownEvt = [startElem, 'pointerdown', pointerdown]
+		pointerMoveEvt = [moveElem, 'pointermove', pointermove]
+		pointerUpEvt = [moveElem, 'pointerup', pointerup]
+		pointerCancelEvt = [moveElem, 'pointercancel', pointercancel]
+
+		return [[pointerDownEvt, pointerMoveEvt, pointerUpEvt, pointerCancelEvt], [pointerDownEvt]]
+	})
+}
+
+/**
+ * @param {DoubleMoveCallbacks} callbacks
+ * @param {Context} [context]
+ */
+export function controlDouble(callbacks, context) {
+	const { singleDown, singleMove, singleUp, doubleDown, doubleMove, doubleUp } = callbacks
+
+	/** @type {Element} */
+	let startElem
+	/** @type {EventTarget} */
+	let moveElem
+	/** @type {Element|null} */
+	let offsetElem
+
+	/** @type {Evt} */
+	let pointerDownEvt
+	/** @type {Evt} */
+	let pointerMoveEvt
+	/** @type {Evt} */
+	let pointerUpEvt
+	/** @type {Evt} */
+	let pointerCancelEvt
+
+	const lastPointerEvents = /** @type {PointerEvent[]} */ ([])
+
+	const wrap = makeOffsetWrapper(() => offsetElem)
+
+	const pointerdown = wrap(function pointerdown(/** @type {PointerEvent} */ e, dx, dy) {
+		if (e.pointerType === 'mouse' && e.button !== 0) return false
+		const curCount = lastPointerEvents.length
+		if (curCount === 2) return false
+
+		if (curCount === 0) {
+			addListener(pointerMoveEvt)
+			addListener(pointerUpEvt)
+			addListener(pointerCancelEvt)
+			context?.down?.() //TODO: removeListener(mouseHoverEvt)
+		}
+
+		const x = e.clientX + dx
+		const y = e.clientY + dy
+
+		if (curCount === 0) {
+			lastPointerEvents.push(e)
+			return singleDown(e, x, y, false)
+		}
+
+		// curCount === 1
+		const e0 = lastPointerEvents[0]
+		lastPointerEvents.push(e)
+		const preventUp = singleUp(e0, true)
+		const preventDouble = doubleDown(e, e0, e, e0.clientX + dx, e0.clientY + dy, x, y)
+		return preventUp || preventDouble
+	})
+
+	const pointermove = wrap(function pointermove(/** @type {PointerEvent} */ e, dx, dy) {
+		const curCount = lastPointerEvents.length
+
+		const index = findPointerIndex(lastPointerEvents, e)
+		if (index === -1) return false
+		lastPointerEvents[index] = e
+
+		if (curCount === 1) {
+			return singleMove(e, e.clientX + dx, e.clientY + dy)
+		}
+
+		// curCount === 2
+		const e0 = lastPointerEvents[0]
+		const e1 = lastPointerEvents[1]
+
+		return doubleMove(e, e0, e1, e0.clientX + dx, e0.clientY + dy, e1.clientX + dx, e1.clientY + dy)
+	})
+
+	const pointerup = wrap(function pointerup(/** @type {PointerEvent} */ e, dx, dy) {
+		const curCount = lastPointerEvents.length
+
+		const index = findPointerIndex(lastPointerEvents, e)
+		if (index === -1) return false
+
+		if (curCount === 1) {
+			removeListener(pointerMoveEvt)
+			removeListener(pointerUpEvt)
+			removeListener(pointerCancelEvt)
+			context?.up?.() //TODO: addListener(mouseHoverEvt)
+		}
+
+		if (curCount === 1) {
+			lastPointerEvents.length = 0
+			return singleUp(e, false)
+		}
+
+		// curCount === 2
+		const e0 = lastPointerEvents[0]
+		const e1 = lastPointerEvents[1]
+		const eRemaining = lastPointerEvents.splice(index, 1)[0]
+
+		const preventUp = doubleUp(e, e0, e1)
+		const preventDown = singleDown(eRemaining, eRemaining.clientX + dx, eRemaining.clientY + dy, true)
+		return preventUp || preventDown
+	})
+
+	const pointercancel = function pointercancel(e) {
+		pointerup(e)
+	}
+
+	return makeEventsToggler((/**@type {MoveElemsCfg}*/ elems) => {
+		startElem = elems.startElem
+		moveElem = elems.moveElem ?? window
+		offsetElem = nullUnlessOffset(elems.offsetElem, startElem)
+
+		pointerDownEvt = [startElem, 'pointerdown', pointerdown]
+		pointerMoveEvt = [moveElem, 'pointermove', pointermove]
+		pointerUpEvt = [moveElem, 'pointerup', pointerup]
+		pointerCancelEvt = [moveElem, 'pointercancel', pointercancel]
+
+		return [[pointerDownEvt, pointerMoveEvt, pointerUpEvt, pointerCancelEvt], [pointerDownEvt]]
+	})
+}
+
+/**
+ * @param {WheelCallbacks} callbacks
+ */
+export function controlWheel(callbacks) {
+	const wheelRot = callbacks.wheelRot
+
+	/** @type {Element|null} */
+	let offsetElem
+
+	const wrap = makeOffsetWrapper(() => offsetElem)
+
+	const deltaMode2pixels = []
+	deltaMode2pixels[WheelEvent.DOM_DELTA_PIXEL] = 1
+	deltaMode2pixels[WheelEvent.DOM_DELTA_LINE] = 20
+	deltaMode2pixels[WheelEvent.DOM_DELTA_PAGE] = 50 // а это вообще как?
+
+	const mousewheel = wrap(function mousewheel(/** @type {WheelEvent} */ e, dx, dy) {
+		const k = deltaMode2pixels[e.deltaMode]
+		return wheelRot(e, e.deltaX * k, e.deltaY * k, e.deltaZ * k, e.clientX + dx, e.clientY + dy)
+	})
+
+	return makeEventsToggler((/**@type {MoveElemsCfg}*/ elems) => {
+		const startElem = elems.startElem
+		offsetElem = nullUnlessOffset(elems.offsetElem, startElem)
+
+		const wheelEvt = /** @type {Evt} */ ([startElem, 'wheel', mousewheel])
+
+		return [[wheelEvt], [wheelEvt]]
+	})
+}
+
+/**
+ * @param {() => Element|null|undefined} getOffsetElem
+ */
+function makeOffsetWrapper(getOffsetElem) {
 	/**
 	 * @template {Event} T
 	 * @param {(e:T, x:number, y:number) => boolean|void} func
@@ -339,9 +289,8 @@ function makeOffsetWrapper(offsetElem) {
 		return e => {
 			let dx = 0
 			let dy = 0
-			if (offsetElem !== 'no-offset') {
-				;({ left: dx, top: dy } = offsetElem.getBoundingClientRect())
-			}
+			const elem = getOffsetElem()
+			if (elem) ({ left: dx, top: dy } = elem.getBoundingClientRect())
 			func(e, -dx, -dy) && e.preventDefault()
 		}
 	}
@@ -349,66 +298,21 @@ function makeOffsetWrapper(offsetElem) {
 }
 
 /**
- * @param {(func: (e:WheelEvent, x:number, y:number) => boolean|void) => ((e:WheelEvent) => void)} wrap
- * @param {(e:WheelEvent, deltaX:number, deltaY:number, deltaZ:number, x:number, y:number) => void|boolean} wheelRot
+ * @param {Element|null|undefined|'no-offset'} elem
+ * @param {Element} defaultElem
  */
-function makeWheelListener(wrap, wheelRot) {
-	const deltaMode2pixels = []
-	deltaMode2pixels[WheelEvent.DOM_DELTA_PIXEL] = 1
-	deltaMode2pixels[WheelEvent.DOM_DELTA_LINE] = 20
-	deltaMode2pixels[WheelEvent.DOM_DELTA_PAGE] = 50 // а это вообще как?
-	return wrap(function mousewheel(/** @type {WheelEvent} */ e, dx, dy) {
-		const k = deltaMode2pixels[e.deltaMode]
-		return wheelRot(e, e.deltaX * k, e.deltaY * k, e.deltaZ * k, e.clientX + dx, e.clientY + dy)
-	})
+function nullUnlessOffset(elem, defaultElem) {
+	if (elem === 'no-offset') return null
+	return elem ?? defaultElem
 }
 
 /**
- * @param {Evt[]} allEents
- * @param {Evt[]} autoOnEvents
+ * @param {PointerEvent[]} events
+ * @param {PointerEvent} event
  */
-function makeEventsToggler(allEents, autoOnEvents) {
-	let isOn = false
-	/** @param {boolean|null|undefined} on */
-	function toggle(on) {
-		on = on ?? !isOn
-		if (isOn === on) return
-		if (on) autoOnEvents.map(addListener)
-		else allEents.map(removeListener)
-		isOn = on
-	}
-
-	toggle(true)
-	return {
-		toggle,
-		get isOn() {
-			return isOn
-		},
-		on() {
-			toggle(true)
-		},
-		off() {
-			toggle(false)
-		},
-	}
-}
-
-/**
- * @param {TouchList} list
- * @param {number} id
- */
-function findTouch(list, id) {
-	for (let i = 0; i < list.length; i++) if (list[i].identifier === id) return list[i]
-	return null
-}
-/**
- * @param {TouchList} list
- * @param {number} id
- */
-function mustFindTouch(list, id) {
-	const touch = findTouch(list, id)
-	if (touch === null) throw new Error(`touch #${id} not found`)
-	return touch
+function findPointerIndex(events, event) {
+	for (let i = 0; i < events.length; i++) if (events[i].pointerId === event.pointerId) return i
+	return -1
 }
 
 /** @param {Evt} event */
@@ -419,4 +323,46 @@ function addListener(event) {
 /** @param {Evt} event */
 function removeListener(event) {
 	event[0].removeEventListener(event[1], event[2], { capture: true })
+}
+
+/**
+ * @template TElemsCfg
+ * @param {(elems: TElemsCfg) => EvtGroup} getEvents
+ */
+function makeEventsToggler(getEvents) {
+	let events = /**@type {(EvtGroup|null)}*/ (null)
+
+	/**
+	 * @param {TElemsCfg} elems
+	 * @param {boolean|null|undefined} [on]
+	 */
+	function toggle(elems, on) {
+		const isOn = !!events
+		on = on ?? !isOn
+		if (isOn === on) return
+		if (events) {
+			const allEents = events[0]
+			allEents.map(removeListener)
+			events = null
+		} else {
+			events = getEvents(elems)
+			const autoOnEvents = events[1]
+			autoOnEvents.map(addListener)
+		}
+	}
+
+	return {
+		toggle,
+		get isOn() {
+			return !!events
+		},
+		/** @param {TElemsCfg} elems */
+		on(elems) {
+			toggle(elems, true)
+		},
+		/** @param {TElemsCfg} elems */
+		off(elems) {
+			toggle(elems, false)
+		},
+	}
 }

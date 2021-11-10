@@ -6,6 +6,7 @@
 	"main": "src/index.js",
 	"sideEffects": false,
 	"scripts": {
+		"build-examples": "rollup examples/src/index.js --config examples/rollup.config.js",
 		"generate-types": "tsc src/index.js --allowJs --declaration --emitDeclarationOnly",
 		"test": "mocha src/test.js",
 		"test-watch": "mocha --watch --parallel src/test.js"
@@ -26,6 +27,8 @@
 	"author": "3bl3gamer",
 	"license": "MIT",
 	"devDependencies": {
+		"@rollup/plugin-html": "^0.2.4",
+		"@rollup/plugin-node-resolve": "^13.0.6",
 		"@types/chai": "^4.2.16",
 		"@types/jsdom": "^16.2.10",
 		"@types/mocha": "^9.0.0",
@@ -35,6 +38,7 @@
 		"eslint-config-prettier": "^8.3.0",
 		"jsdom": "^18.0.1",
 		"mocha": "^9.1.3",
+		"rollup": "^2.59.0",
 		"sinon": "^12.0.1",
 		"tslib": "^2.1.0",
 		"typescript": "^4.2.3"
