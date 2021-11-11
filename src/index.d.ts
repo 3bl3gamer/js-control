@@ -1,6 +1,14 @@
 /** @typedef {[EventTarget, string, (e:any) => void]} Evt */
 /** @typedef {[allEents:Evt[], autoOnEvents:Evt[]]} EvtGroup */
 /**
+ * @template TElemsCfg
+ * @typedef {{
+ *   readonly isOn: boolean,
+ *   on(elems: TElemsCfg): ControlToggler<TElemsCfg>,
+ *   off(): ControlToggler<TElemsCfg>,
+ * }} ControlToggler
+ */
+/**
  * @typedef {{
  *   singleDown?: (e:MouseEvent|TouchEvent, id:'mouse'|number, x:number, y:number) => boolean|void,
  *   singleMove?: (e:MouseEvent|TouchEvent, id:'mouse'|number, x:number, y:number) => void|boolean,
@@ -32,14 +40,9 @@
  * @typedef {{
  *   startElem: Element,
  *   moveElem?: EventTarget|null,
+ *   leaveElem?: EventTarget|null,
  *   offsetElem?: Element|null|'no-offset',
  * }} MoveElemsCfg
- */
-/**
- * @typedef {{
- *   startElem: Element,
- *   leaveElem?: EventTarget|null,
- * }} HoverElemsCfg
  */
 /**
  * @typedef {{
@@ -48,34 +51,24 @@
  * }} WheelElemsCfg
  */
 /**
- * @param {SingleMoveCallbacks & SingleHoverCallbacks & WheelCallbacks} callbacks
+ * @param {SingleMoveCallbacks & SingleHoverCallbacks} callbacks
  */
-export function controlSingle(callbacks: SingleMoveCallbacks & SingleHoverCallbacks & WheelCallbacks): {
-    readonly isOn: boolean;
-    /** @param {TElemsCfg} elems */
-    on(elems: MoveElemsCfg & HoverElemsCfg): void;
-    off(): void;
-};
+export function controlSingle(callbacks: SingleMoveCallbacks & SingleHoverCallbacks): ControlToggler<MoveElemsCfg>;
 /**
  * @param {WheelCallbacks} callbacks
  */
-export function controlWheel(callbacks: WheelCallbacks): {
-    readonly isOn: boolean;
-    /** @param {TElemsCfg} elems */
-    on(elems: MoveElemsCfg): void;
-    off(): void;
-};
+export function controlWheel(callbacks: WheelCallbacks): ControlToggler<WheelElemsCfg>;
 /**
  * @param {DoubleMoveCallbacks & SingleHoverCallbacks & WheelCallbacks} callbacks
  */
-export function controlDouble(callbacks: DoubleMoveCallbacks & SingleHoverCallbacks & WheelCallbacks): {
-    readonly isOn: boolean;
-    /** @param {TElemsCfg} elems */
-    on(elems: MoveElemsCfg & HoverElemsCfg): void;
-    off(): void;
-};
+export function controlDouble(callbacks: DoubleMoveCallbacks & SingleHoverCallbacks & WheelCallbacks): ControlToggler<MoveElemsCfg>;
 export type Evt = [EventTarget, string, (e: any) => void];
 export type EvtGroup = [allEents: [EventTarget, string, (e: any) => void][], autoOnEvents: Evt[]];
+export type ControlToggler<TElemsCfg> = {
+    readonly isOn: boolean;
+    on(elems: TElemsCfg): ControlToggler<TElemsCfg>;
+    off(): ControlToggler<TElemsCfg>;
+};
 export type SingleMoveCallbacks = {
     singleDown?: (e: MouseEvent | TouchEvent, id: 'mouse' | number, x: number, y: number) => boolean | void;
     singleMove?: (e: MouseEvent | TouchEvent, id: 'mouse' | number, x: number, y: number) => void | boolean;
@@ -99,11 +92,8 @@ export type WheelCallbacks = {
 export type MoveElemsCfg = {
     startElem: Element;
     moveElem?: EventTarget | null;
-    offsetElem?: Element | null | 'no-offset';
-};
-export type HoverElemsCfg = {
-    startElem: Element;
     leaveElem?: EventTarget | null;
+    offsetElem?: Element | null | 'no-offset';
 };
 export type WheelElemsCfg = {
     startElem: Element;

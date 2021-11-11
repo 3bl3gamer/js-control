@@ -2,6 +2,15 @@
 /** @typedef {[allEents:Evt[], autoOnEvents:Evt[]]} EvtGroup */
 
 /**
+ * @template TElemsCfg
+ * @typedef {{
+ *   readonly isOn: boolean,
+ *   on(elems: TElemsCfg): ControlToggler<TElemsCfg>,
+ *   off(): ControlToggler<TElemsCfg>,
+ * }} ControlToggler
+ */
+
+/**
  * @typedef {{
  *   singleDown?: (e:MouseEvent|TouchEvent, id:'mouse'|number, x:number, y:number) => boolean|void,
  *   singleMove?: (e:MouseEvent|TouchEvent, id:'mouse'|number, x:number, y:number) => void|boolean,
@@ -37,15 +46,9 @@
  * @typedef {{
  *   startElem: Element,
  *   moveElem?: EventTarget|null,
+ *   leaveElem?: EventTarget|null,
  *   offsetElem?: Element|null|'no-offset',
  * }} MoveElemsCfg
- */
-
-/**
- * @typedef {{
- *   startElem: Element,
- *   leaveElem?: EventTarget|null,
- * }} HoverElemsCfg
  */
 
 /**
@@ -56,7 +59,7 @@
  */
 
 /**
- * @param {SingleMoveCallbacks & SingleHoverCallbacks & WheelCallbacks} callbacks
+ * @param {SingleMoveCallbacks & SingleHoverCallbacks} callbacks
  */
 export function controlSingle(callbacks) {
 	/** @type {Element} */ let startElem
@@ -67,7 +70,6 @@ export function controlSingle(callbacks) {
 	/** @type {Evt} */ let mouseDownEvt
 	/** @type {Evt} */ let mouseMoveEvt
 	/** @type {Evt} */ let mouseUpEvt
-	/** @type {Evt} */ let wheelEvt
 	/** @type {Evt} */ let mouseHoverEvt
 	/** @type {Evt} */ let mouseLeaveEvt
 	/** @type {Evt} */ let touchStartEvt
@@ -76,7 +78,7 @@ export function controlSingle(callbacks) {
 	/** @type {Evt} */ let touchCancelEvt
 
 	const { singleDown = noop, singleMove = noop, singleUp = noop } = callbacks
-	const { singleHover = noop, singleLeave = noop, wheelRot = noop } = callbacks
+	const { singleHover = noop, singleLeave = noop } = callbacks
 
 	let touchId = /** @type {number|null} */ (null)
 
@@ -148,9 +150,7 @@ export function controlSingle(callbacks) {
 		touchend(e)
 	})
 
-	const mousewheel = makeWheelListener(wrap, wheelRot)
-
-	return makeEventsToggler((/**@type {MoveElemsCfg & HoverElemsCfg}*/ elems) => {
+	return makeEventsToggler((/**@type {MoveElemsCfg}*/ elems) => {
 		startElem = elems.startElem
 		moveElem = elems.moveElem ?? window
 		leaveElem = elems.leaveElem ?? startElem
@@ -159,8 +159,7 @@ export function controlSingle(callbacks) {
 		mouseDownEvt = /** @type {Evt} */ ([startElem, 'mousedown', mousedown])
 		mouseMoveEvt = /** @type {Evt} */ ([moveElem, 'mousemove', mousemove])
 		mouseUpEvt = /** @type {Evt} */ ([moveElem, 'mouseup', mouseup])
-		wheelEvt = /** @type {Evt} */ ([startElem, 'wheel', mousewheel])
-		mouseHoverEvt = /** @type {Evt} */ ([startElem, 'mousemove', mousemoveHover])
+		mouseHoverEvt = /** @type {Evt} */ ([moveElem, 'mousemove', mousemoveHover])
 		mouseLeaveEvt = /** @type {Evt} */ ([leaveElem, 'mouseleave', mouseleave])
 		touchStartEvt = /** @type {Evt} */ ([startElem, 'touchstart', touchstart])
 		touchMoveEvt = /** @type {Evt} */ ([moveElem, 'touchmove', touchmove])
@@ -169,10 +168,10 @@ export function controlSingle(callbacks) {
 
 		// prettier-ignore
 		const events = [
-			mouseDownEvt, mouseMoveEvt, mouseUpEvt, mouseHoverEvt, mouseLeaveEvt, wheelEvt,
+			mouseDownEvt, mouseMoveEvt, mouseUpEvt, mouseHoverEvt, mouseLeaveEvt,
 			touchStartEvt, touchMoveEvt, touchEndEvt, touchCancelEvt,
 		]
-		const autoOnEvents = [mouseDownEvt, touchStartEvt, mouseHoverEvt, mouseLeaveEvt, wheelEvt]
+		const autoOnEvents = [mouseDownEvt, touchStartEvt, mouseHoverEvt, mouseLeaveEvt]
 		return [events, autoOnEvents]
 	})
 }
@@ -188,7 +187,7 @@ export function controlWheel(callbacks) {
 	const wrap = makeOffsetWrapper(() => offsetElem)
 	const mousewheel = makeWheelListener(wrap, wheelRot)
 
-	return makeEventsToggler((/**@type {MoveElemsCfg}*/ elems) => {
+	return makeEventsToggler((/**@type {WheelElemsCfg}*/ elems) => {
 		const startElem = elems.startElem
 		offsetElem = nullUnlessOffset(elems.offsetElem, startElem)
 
@@ -362,7 +361,7 @@ export function controlDouble(callbacks) {
 
 	const mousewheel = makeWheelListener(wrap, wheelRot)
 
-	return makeEventsToggler((/**@type {MoveElemsCfg & HoverElemsCfg}*/ elems) => {
+	return makeEventsToggler((/**@type {MoveElemsCfg}*/ elems) => {
 		startElem = elems.startElem
 		moveElem = elems.moveElem ?? window
 		leaveElem = elems.leaveElem ?? startElem
@@ -372,7 +371,7 @@ export function controlDouble(callbacks) {
 		mouseMoveEvt = /** @type {Evt} */ ([moveElem, 'mousemove', mousemove])
 		mouseUpEvt = /** @type {Evt} */ ([moveElem, 'mouseup', mouseup])
 		wheelEvt = /** @type {Evt} */ ([startElem, 'wheel', mousewheel])
-		mouseHoverEvt = /** @type {Evt} */ ([startElem, 'mousemove', mousemoveHover])
+		mouseHoverEvt = /** @type {Evt} */ ([moveElem, 'mousemove', mousemoveHover])
 		mouseLeaveEvt = /** @type {Evt} */ ([leaveElem, 'mouseleave', mouseleave])
 		touchStartEvt = /** @type {Evt} */ ([startElem, 'touchstart', touchstart])
 		touchMoveEvt = /** @type {Evt} */ ([moveElem, 'touchmove', touchmove])
@@ -439,6 +438,7 @@ function makeWheelListener(wrap, wheelRot) {
 /**
  * @template TElemsCfg
  * @param {(elems: TElemsCfg) => EvtGroup} getEvents
+ * @returns {ControlToggler<TElemsCfg>}
  */
 function makeEventsToggler(getEvents) {
 	let events = /**@type {(EvtGroup|null)}*/ (null)
@@ -447,18 +447,21 @@ function makeEventsToggler(getEvents) {
 		get isOn() {
 			return !!events
 		},
-		/** @param {TElemsCfg} elems */
 		on(elems) {
-			if (events) return
-			events = getEvents(elems)
-			const autoOnEvents = events[1]
-			autoOnEvents.map(addListener)
+			if (!events) {
+				events = getEvents(elems)
+				const autoOnEvents = events[1]
+				autoOnEvents.map(addListener)
+			}
+			return this
 		},
 		off() {
-			if (!events) return
-			const allEents = events[0]
-			allEents.map(removeListener)
-			events = null
+			if (events) {
+				const allEents = events[0]
+				allEents.map(removeListener)
+				events = null
+			}
+			return this
 		},
 	}
 }

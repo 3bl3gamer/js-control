@@ -1,4 +1,4 @@
-import { controlSingle, controlDouble, controlWheel } from '../../src'
+import { controlSingle, controlDouble } from '../../src'
 
 const body = document.body
 
@@ -100,7 +100,7 @@ function roundStr1(val) {
 }
 
 {
-	const wrap = makeWrap('controlDouble<br>+ wheel')
+	const wrap = makeWrap('controlDouble')
 	const [elem, label] = makeElem(wrap, 'drag me<br>touch-scale me<br>wheel-zoom me')
 
 	let elemX = 32
@@ -162,9 +162,6 @@ function roundStr1(val) {
 		doubleUp(e, id0, id1) {
 			label.innerHTML = `<b>up x2</b><br>id0=${id0} id1=${id1}`
 		},
-	}).on({ startElem: elem, offsetElem: wrap })
-
-	controlWheel({
 		wheelRot(e, dx, dy, dz, x, y) {
 			label.innerHTML = `<b>wheel</b><br>dx=${roundStr1(dx)} dy=${roundStr1(dy)} dz=${roundStr1(dz)}`
 
@@ -177,5 +174,5 @@ function roundStr1(val) {
 
 			return true
 		},
-	}).on({ startElem: elem, offsetElem: 'no-offset' })
+	}).on({ startElem: elem, offsetElem: wrap })
 }
