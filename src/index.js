@@ -329,6 +329,7 @@ export function controlDouble(callbacks) {
 				if (t.identifier === touchIds[j]) {
 					touchIds.splice(j, 1)
 					releasedTouches.push(t)
+					break
 				}
 			}
 		}
@@ -340,11 +341,14 @@ export function controlDouble(callbacks) {
 			removeListener(touchCancelEvt)
 		}
 
-		if (curCount === 1 && releasedTouches.length === 1) {
+		if (curCount === 1) {
+			// and releasedTouches.length === 1
 			return singleUp(e, releasedTouches[0].identifier, false)
 		}
 
-		const tLast = mustFindTouch(e.touches, releasedTouches[0].identifier === tid0 ? tid1 : tid0)
+		// curCount === 2 and releasedTouches.length >= 1
+		const tLast =
+			releasedTouches.length === 1 ? mustFindTouch(e.touches, touchIds[0]) : releasedTouches[1]
 
 		const preventUp2 = doubleUp(e, tid0, tid1)
 		const preventDown1 = singleDown(e, tLast.identifier, tLast.clientX + dx, tLast.clientY + dy, true)

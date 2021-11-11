@@ -1,5 +1,10 @@
 import { controlSingle, controlDouble } from '../../src'
 
+window.addEventListener('error', e => {
+	if (e.message === 'Script error.' && e.filename === '') return
+	alert(`${e.message} in ${e.filename}:${e.lineno}:${e.colno}`)
+})
+
 const body = document.body
 
 function translate(elem, x, y, scale = 1) {

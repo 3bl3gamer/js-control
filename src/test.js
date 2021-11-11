@@ -39,7 +39,6 @@ describe('controlSingle', () => {
 			singleUp: sinon.spy(),
 			singleHover: sinon.spy(),
 			singleLeave: sinon.spy(),
-			wheelRot: sinon.spy(),
 		}
 		startElem = document.body.getElementsByClassName('startElem')[0]
 		startElem.getBoundingClientRect = () => /**@type {*}*/ ({ left: -1000, top: -2000 })
@@ -200,21 +199,6 @@ describe('controlSingle', () => {
 			})
 		}
 	})
-	describe('mouse wheel', () => {
-		it('should call whell', () => {
-			const params = { deltaX: 1, deltaY: 2, deltaZ: 3, clientX: 12, clientY: 23 }
-			const event = new window.WheelEvent('wheel', params)
-			startElem.dispatchEvent(event)
-			test.strictEqual(callbacks.wheelRot.callCount, 1)
-			const [e, dx, dy, dz, x, y] = callbacks.wheelRot.args[0]
-			test.strictEqual(e, event)
-			test.strictEqual(dx, 1)
-			test.strictEqual(dy, 2)
-			test.strictEqual(dz, 3)
-			test.strictEqual(x, 1012)
-			test.strictEqual(y, 2023)
-		})
-	})
 	describe('toggle', () => {
 		it('should detach listeners', () => {
 			c.off()
@@ -222,7 +206,6 @@ describe('controlSingle', () => {
 			dispatchTouch(startElem, 'touchstart', {})
 			startElem.dispatchEvent(new window.WheelEvent('wheel'))
 			test.strictEqual(callbacks.singleDown.callCount, 0)
-			test.strictEqual(callbacks.wheelRot.callCount, 0)
 		})
 		it('should reattach listeners', () => {
 			c.off()
@@ -234,7 +217,6 @@ describe('controlSingle', () => {
 			})
 			startElem.dispatchEvent(new window.WheelEvent('wheel'))
 			test.strictEqual(callbacks.singleDown.callCount, 2)
-			test.strictEqual(callbacks.wheelRot.callCount, 1)
 		})
 	})
 })
@@ -493,7 +475,6 @@ describe('controlDouble', () => {
 						test.strictEqual(callbacks.singleUp.callCount, 1)
 						test.strictEqual(callbacks.doubleDown.callCount, 1)
 						const event = dispatchTouch(startElem, eventName, {
-							touches: [fakeTouch(123, startElem, 12, 23), fakeTouch(124, startElem, 22, 33)],
 							changedTouches: [
 								fakeTouch(123, startElem, 12, 23),
 								fakeTouch(124, startElem, 22, 33),
