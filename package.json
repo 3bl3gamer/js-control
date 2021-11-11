@@ -1,6 +1,6 @@
 {
 	"name": "js-control",
-	"version": "1.1.0",
+	"version": "2.1.2",
 	"description": "Utils for unified mouse and single/double touch input",
 	"type": "module",
 	"main": "src/index.js",
