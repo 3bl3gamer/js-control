@@ -192,8 +192,6 @@ function roundStr1(val) {
 		},
 		wheelRot(e, dx, dy, dz, x, y) {
 			log(
-				wrap,
-				labelElem,
 				`<b>wheel</b>`,
 				`dx=${roundStr1(dx)} dy=${roundStr1(dy)} dz=${roundStr1(dz)}`,
 			)
