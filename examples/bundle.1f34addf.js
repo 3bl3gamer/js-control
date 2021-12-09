@@ -672,8 +672,6 @@
 			},
 			wheelRot(e, dx, dy, dz, x, y) {
 				log(
-					wrap,
-					labelElem,
 					`<b>wheel</b>`,
 					`dx=${roundStr1(dx)} dy=${roundStr1(dy)} dz=${roundStr1(dz)}`,
 				);
@@ -691,4 +689,4 @@
 	}
 
 })();
-//# sourceMappingURL=bundle.0ce9bb9c.js.map
+//# sourceMappingURL=bundle.1f34addf.js.map
